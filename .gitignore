@@ -1,0 +1,39 @@
+# Python
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Downloads (temporary audio/thumbnails)
+downloads/*.mp3
+downloads/*.mp4
+downloads/*.webm
+downloads/*.jpg
+downloads/*.png
+downloads/*_thumb.*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+/tmp/
+
+# Environment
+.env
+.env.local
+
+# Test outputs
+test_output.*
+
+# OS
+Thumbs.db
