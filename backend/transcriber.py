@@ -1,23 +1,51 @@
 """Audio transcription using MLX Whisper (optimized for Apple Silicon)"""
 import mlx_whisper
 
+# Supported languages
+SUPPORTED_LANGUAGES = {
+    "auto": None,  # Auto-detect
+    "en": "english",
+    "ta": "tamil",
+    "hi": "hindi",
+    "te": "telugu",
+    "kn": "kannada",
+    "ml": "malayalam",
+    "es": "spanish",
+    "fr": "french",
+    "de": "german",
+    "ja": "japanese",
+    "ko": "korean",
+    "zh": "chinese",
+}
 
-def transcribe_audio(audio_path: str, model_name: str = "mlx-community/whisper-large-v3-turbo") -> dict:
+
+def transcribe_audio(
+    audio_path: str,
+    language: str = "auto",
+    model_name: str = "mlx-community/whisper-large-v3-turbo"
+) -> dict:
     """
     Transcribe audio file using MLX Whisper.
 
     Args:
         audio_path: Path to audio file
+        language: Language code ('auto', 'en', 'ta', 'hi', etc.)
         model_name: Whisper model to use (default: large-v3-turbo for best speed/quality)
 
     Returns:
         dict with 'text' (full transcript) and 'segments' (timestamped chunks)
     """
-    result = mlx_whisper.transcribe(
-        audio_path,
-        path_or_hf_repo=model_name,
-        verbose=False
-    )
+    # Prepare transcription options
+    transcribe_options = {
+        "path_or_hf_repo": model_name,
+        "verbose": False
+    }
+
+    # Set language if specified (not auto)
+    if language != "auto" and language in SUPPORTED_LANGUAGES:
+        transcribe_options["language"] = SUPPORTED_LANGUAGES[language]
+
+    result = mlx_whisper.transcribe(audio_path, **transcribe_options)
 
     # Format segments with timestamps
     formatted_segments = []
@@ -28,10 +56,12 @@ def transcribe_audio(audio_path: str, model_name: str = "mlx-community/whisper-l
             "text": segment["text"].strip()
         })
 
+    detected_language = result.get("language", "en")
+
     return {
         "text": result["text"],
         "segments": formatted_segments,
-        "language": result.get("language", "en")
+        "language": detected_language
     }
 
 

@@ -52,6 +52,29 @@
 
         <div class="toolbar-divider"></div>
 
+        <!-- Language Controls -->
+        <select id="sourceLanguage" class="toolbar-select language-select" title="Video Language">
+            <option value="auto">Auto Detect</option>
+            <option value="en">English</option>
+            <option value="ta">Tamil</option>
+            <option value="hi">Hindi</option>
+            <option value="te">Telugu</option>
+            <option value="kn">Kannada</option>
+            <option value="ml">Malayalam</option>
+        </select>
+
+        <button class="toolbar-btn" id="translateBtn" title="Translate">
+            <span class="btn-icon">🌐</span>
+            <span class="btn-label">Translate</span>
+        </button>
+
+        <select id="targetLanguage" class="toolbar-select language-select" title="Translate To">
+            <option value="en">English</option>
+            <option value="ta">Tamil</option>
+        </select>
+
+        <div class="toolbar-divider"></div>
+
         <!-- Font Controls -->
         <select id="fontFamily" class="toolbar-select" title="Font">
             <option value="Arial">Arial</option>
@@ -157,6 +180,71 @@
                     <p class="placeholder-text">Takeaways will appear here after transcription</p>
                 </div>
             </div>
+
+            <!-- Instagram Reels Section -->
+            <div class="sidebar-section reels-section" id="reelsSection">
+                <h3>🎬 Instagram Reels</h3>
+                <div class="reels-tabs">
+                    <button class="reel-tab active" data-tab="ai">AI Picks</button>
+                    <button class="reel-tab" data-tab="manual">Manual</button>
+                </div>
+
+                <!-- AI Suggestions Tab -->
+                <div class="reels-tab-content" id="aiReelsTab">
+                    <div id="reelSuggestions" class="sidebar-content">
+                        <p class="placeholder-text">Click "Get AI Suggestions" to find engaging clips</p>
+                    </div>
+                    <button id="getReelSuggestionsBtn" class="sidebar-btn reel-action-btn">
+                        🤖 Get AI Suggestions
+                    </button>
+                </div>
+
+                <!-- Manual Selection Tab -->
+                <div class="reels-tab-content" id="manualReelsTab" style="display: none;">
+                    <div class="manual-reel-form">
+                        <div class="time-input-group">
+                            <label>Start Time</label>
+                            <input type="text" id="reelStartTime" placeholder="MM:SS" class="time-input">
+                        </div>
+                        <div class="time-input-group">
+                            <label>End Time</label>
+                            <input type="text" id="reelEndTime" placeholder="MM:SS" class="time-input">
+                        </div>
+                        <div class="time-input-group">
+                            <label>Title</label>
+                            <input type="text" id="reelTitle" placeholder="Clip title" class="reel-title-input">
+                        </div>
+                        <button id="addManualReelBtn" class="sidebar-btn">
+                            ➕ Add to Queue
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Reel Queue -->
+                <div class="reel-queue-section">
+                    <h4>📋 Selected Clips (<span id="reelQueueCount">0</span>)</h4>
+                    <div id="reelQueue" class="reel-queue">
+                        <p class="placeholder-text">No clips selected</p>
+                    </div>
+                </div>
+
+                <!-- Generation Options -->
+                <div class="reel-options">
+                    <label class="reel-option-checkbox">
+                        <input type="checkbox" id="includeReelCaptions" checked>
+                        <span>Include captions</span>
+                    </label>
+                    <label class="reel-option-checkbox">
+                        <input type="checkbox" id="blurReelBackground" checked>
+                        <span>Blur background</span>
+                    </label>
+                </div>
+
+                <button id="generateReelsBtn" class="sidebar-btn primary-reel-btn" disabled>
+                    🎬 Generate Reels
+                </button>
+            </div>
+
             <button id="regenerateBtn" class="sidebar-btn" style="display: none;">
                 🔄 Regenerate
             </button>

@@ -37,3 +37,13 @@ test_output.*
 
 # OS
 Thumbs.db
+
+# Local launcher scripts (contain hardcoded personal paths)
+*.command
+launch_tldr.command
+
+# Generated files not for version control
+desktop_app.py
+setup.py
+downloads/reels/
+app.log

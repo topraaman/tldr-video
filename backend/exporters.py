@@ -1,10 +1,22 @@
 """Export transcript to PDF and DOCX formats"""
 import io
+import re
+from html import escape
 from pathlib import Path
 from docx import Document
 from docx.shared import Pt, Inches, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from weasyprint import HTML, CSS
+
+# Allowlist for CSS color values to prevent CSS injection
+_CSS_COLOR_RE = re.compile(
+    r'^(#[0-9a-fA-F]{3,8}|rgba?\(\d+,\s*\d+,\s*\d+(?:,\s*[\d.]+)?\)|[a-zA-Z]+)$'
+)
+
+
+def _safe_color(color: str) -> str:
+    """Return color if it matches a safe CSS pattern, otherwise fall back to yellow."""
+    return color if _CSS_COLOR_RE.match(color.strip()) else "#ffff00"
 
 
 def export_to_docx(
@@ -110,15 +122,17 @@ def export_to_pdf(
 
     highlights = highlights or []
 
-    # Apply highlights to transcript
-    highlighted_transcript = transcript
+    # Escape transcript first, then apply highlights with safe colors
+    escaped_transcript = escape(transcript)
+    highlighted_transcript = escaped_transcript
     for h in highlights:
         text = h.get("text", "")
-        color = h.get("color", "#ffff00")
+        color = _safe_color(h.get("color", "#ffff00"))
         if text:
+            escaped_text = escape(text)
             highlighted_transcript = highlighted_transcript.replace(
-                text,
-                f'<span style="background-color: {color};">{text}</span>'
+                escaped_text,
+                f'<span style="background-color: {color};">{escaped_text}</span>'
             )
 
     # Build thumbnail HTML
@@ -132,24 +146,27 @@ def export_to_pdf(
             pass
 
     # Build channel HTML
-    channel_html = f'<p class="channel">By: {channel}</p>' if channel else ""
+    channel_html = f'<p class="channel">By: {escape(channel)}</p>' if channel else ""
 
     # Build HTML
     chapters_html = ""
     if chapters:
         chapters_html = "<h2>Chapters</h2><ul>"
         for ch in chapters:
-            chapters_html += f"<li><strong>{ch.get('timestamp', '')}</strong> - {ch.get('title', '')}</li>"
+            chapters_html += (
+                f"<li><strong>{escape(ch.get('timestamp', ''))}</strong>"
+                f" - {escape(ch.get('title', ''))}</li>"
+            )
         chapters_html += "</ul>"
 
     takeaways_html = ""
     if takeaways:
         takeaways_html = "<h2>Key Takeaways</h2><ol>"
         for t in takeaways:
-            takeaways_html += f"<li>{t}</li>"
+            takeaways_html += f"<li>{escape(str(t))}</li>"
         takeaways_html += "</ol>"
 
-    # Convert newlines to paragraphs
+    # Convert newlines to paragraphs (transcript already escaped above)
     transcript_paragraphs = highlighted_transcript.replace('\n\n', '</p><p>').replace('\n', '<br>')
 
     html_content = f"""
@@ -211,7 +228,7 @@ def export_to_pdf(
     </head>
     <body>
         {thumbnail_html}
-        <h1>{title}</h1>
+        <h1>{escape(title)}</h1>
         {channel_html}
         {chapters_html}
         {takeaways_html}

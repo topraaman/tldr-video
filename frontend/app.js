@@ -10,11 +10,17 @@ let currentData = {
     chapters: [],
     takeaways: [],
     segments: [],
-    highlights: []
+    highlights: [],
+    url: ''  // Store the original URL for reel generation
 };
 
 let currentHighlightColor = '#ffff00';
 let currentTextColor = '#000000';
+
+// Reels state
+let reelQueue = [];
+let reelSuggestions = [];
+let chapterSuggestions = [];
 
 // DOM Elements
 const urlInput = document.getElementById('urlInput');
@@ -164,6 +170,43 @@ function initializeEventListeners() {
             }
         }
     });
+
+    // Initialize Reels UI
+    initializeReelsUI();
+}
+
+function initializeReelsUI() {
+    // Reels tab switching
+    document.querySelectorAll('.reel-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            // Update active tab
+            document.querySelectorAll('.reel-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+
+            // Show corresponding content
+            const tabName = tab.dataset.tab;
+            document.getElementById('aiReelsTab').style.display = tabName === 'ai' ? 'block' : 'none';
+            document.getElementById('manualReelsTab').style.display = tabName === 'manual' ? 'block' : 'none';
+        });
+    });
+
+    // Get AI suggestions button
+    const getReelSuggestionsBtn = document.getElementById('getReelSuggestionsBtn');
+    if (getReelSuggestionsBtn) {
+        getReelSuggestionsBtn.addEventListener('click', getReelSuggestions);
+    }
+
+    // Add manual reel button
+    const addManualReelBtn = document.getElementById('addManualReelBtn');
+    if (addManualReelBtn) {
+        addManualReelBtn.addEventListener('click', addManualReel);
+    }
+
+    // Generate reels button
+    const generateReelsBtn = document.getElementById('generateReelsBtn');
+    if (generateReelsBtn) {
+        generateReelsBtn.addEventListener('click', generateReels);
+    }
 }
 
 async function checkHealth() {
@@ -263,8 +306,9 @@ function displayResults(result) {
         takeaways: result.takeaways || [],
         segments: result.segments || [],
         highlights: [],
-        thumbnail_path: result.thumbnail_path || null,
-        channel: result.channel || ""
+        thumbnail_filename: result.thumbnail_filename || null,
+        channel: result.channel || "",
+        url: urlInput.value.trim()  // Store the URL for reel generation
     };
 
     // Update title
@@ -280,10 +324,21 @@ function displayResults(result) {
     displayTakeaways(currentData.takeaways);
 
     // Display thumbnail if available
-    displayThumbnail(currentData.thumbnail_path, currentData.channel);
+    displayThumbnail(currentData.thumbnail_filename, currentData.channel);
 
     // Show regenerate button
     regenerateBtn.style.display = 'block';
+
+    // Show Reels section
+    const reelsSection = document.getElementById('reelsSection');
+    if (reelsSection) {
+        reelsSection.style.display = 'block';
+    }
+
+    // Reset reel queue
+    reelQueue = [];
+    reelSuggestions = [];
+    updateReelQueue();
 
     // Update word count
     updateWordCount();
@@ -291,16 +346,13 @@ function displayResults(result) {
     statusText.textContent = 'Transcription complete';
 }
 
-function displayThumbnail(thumbnailPath, channel) {
-    if (thumbnailPath) {
-        // Extract filename from path
-        const filename = thumbnailPath.split('/').pop();
-
+function displayThumbnail(thumbnailFilename, channel) {
+    if (thumbnailFilename) {
         // Show thumbnail section
         thumbnailSection.style.display = 'block';
 
-        // Set thumbnail image source (serve from API)
-        thumbnailPreview.src = `${API_BASE}/api/thumbnail/${filename}`;
+        // Set thumbnail image source (serve from API using filename only)
+        thumbnailPreview.src = `${API_BASE}/api/thumbnail/${encodeURIComponent(thumbnailFilename)}`;
         thumbnailPreview.onerror = () => {
             thumbnailSection.style.display = 'none';
         };
@@ -314,24 +366,42 @@ function displayThumbnail(thumbnailPath, channel) {
     }
 }
 
-function downloadThumbnail() {
-    if (!currentData.thumbnail_path) {
+async function downloadThumbnail() {
+    if (!currentData.thumbnail_filename) {
         statusText.textContent = 'No thumbnail available';
         return;
     }
 
-    const filename = currentData.thumbnail_path.split('/').pop();
+    const filename = currentData.thumbnail_filename;
     const downloadName = `${currentData.title.replace(/[^a-zA-Z0-9]/g, '_')}_thumbnail.jpg`;
 
-    // Create download link
-    const a = document.createElement('a');
-    a.href = `${API_BASE}/api/thumbnail/${filename}`;
-    a.download = downloadName;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    statusText.textContent = 'Downloading thumbnail...';
 
-    statusText.textContent = 'Thumbnail downloaded';
+    try {
+        // Fetch the image as a blob
+        const response = await fetch(`${API_BASE}/api/thumbnail/${encodeURIComponent(filename)}`);
+        if (!response.ok) {
+            throw new Error('Failed to download thumbnail');
+        }
+
+        const blob = await response.blob();
+
+        // Create a blob URL and trigger download
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = downloadName;
+        document.body.appendChild(a);
+        a.click();
+
+        // Cleanup
+        window.URL.revokeObjectURL(url);
+        a.remove();
+
+        statusText.textContent = 'Thumbnail downloaded';
+    } catch (error) {
+        statusText.textContent = 'Failed to download thumbnail: ' + error.message;
+    }
 }
 
 function formatTranscriptForDisplay(text) {
@@ -367,17 +437,77 @@ function displayChapters(chapters) {
         <div class="chapter-item" data-index="${i}">
             <span class="chapter-time">${ch.timestamp || '00:00'}</span>
             <span class="chapter-title">${ch.title || 'Chapter ' + (i + 1)}</span>
+            <button class="chapter-reel-btn" onclick="addChapterToReelQueue(${i})" title="Add to Reels queue">🎬</button>
         </div>
     `).join('');
 
     // Add click handlers to jump to timestamp
     chaptersList.querySelectorAll('.chapter-item').forEach(item => {
-        item.addEventListener('click', () => {
-            // Could implement scroll-to-timestamp if segments have timestamps
+        item.addEventListener('click', (e) => {
+            // Don't trigger if reel button was clicked
+            if (e.target.classList.contains('chapter-reel-btn')) return;
             item.classList.add('active');
             setTimeout(() => item.classList.remove('active'), 200);
         });
     });
+}
+
+function addChapterToReelQueue(chapterIndex) {
+    const chapter = currentData.chapters[chapterIndex];
+    if (!chapter) return;
+
+    // Parse timestamp to seconds
+    const timestamp = chapter.timestamp || '00:00';
+    const parts = timestamp.split(':');
+    let startSecs = 0;
+    if (parts.length === 2) {
+        startSecs = parseInt(parts[0]) * 60 + parseInt(parts[1]);
+    } else if (parts.length === 3) {
+        startSecs = parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseInt(parts[2]);
+    }
+
+    // Estimate end time (default 30 seconds, or until next chapter)
+    let endSecs = startSecs + 30;
+    if (chapterIndex + 1 < currentData.chapters.length) {
+        const nextTimestamp = currentData.chapters[chapterIndex + 1].timestamp || '00:00';
+        const nextParts = nextTimestamp.split(':');
+        let nextStart = 0;
+        if (nextParts.length === 2) {
+            nextStart = parseInt(nextParts[0]) * 60 + parseInt(nextParts[1]);
+        } else if (nextParts.length === 3) {
+            nextStart = parseInt(nextParts[0]) * 3600 + parseInt(nextParts[1]) * 60 + parseInt(nextParts[2]);
+        }
+        // Use minimum of 30 seconds or time until next chapter
+        endSecs = Math.min(startSecs + 30, nextStart);
+    }
+
+    // Check if already in queue
+    const exists = reelQueue.some(q =>
+        q.start_time === startSecs && q.end_time === endSecs
+    );
+
+    if (exists) {
+        statusText.textContent = 'Chapter already in reel queue';
+        return;
+    }
+
+    reelQueue.push({
+        start_time: startSecs,
+        end_time: endSecs,
+        title: chapter.title || `Chapter ${chapterIndex + 1}`,
+        hook_score: 0.5,
+        hook_reason: 'From video chapter',
+        source: 'chapter'
+    });
+
+    updateReelQueue();
+    statusText.textContent = `Added "${chapter.title}" to reel queue`;
+
+    // Show reels section if hidden
+    const reelsSection = document.getElementById('reelsSection');
+    if (reelsSection) {
+        reelsSection.style.display = 'block';
+    }
 }
 
 function displayTakeaways(takeaways) {
@@ -453,7 +583,7 @@ async function exportDocument(format) {
                 font_name: fontFamily.value,
                 font_size: parseInt(fontSize.value),
                 highlights: currentData.highlights,
-                thumbnail_path: currentData.thumbnail_path,
+                thumbnail_filename: currentData.thumbnail_filename,
                 channel: currentData.channel
             })
         });
@@ -617,4 +747,370 @@ function isValidUrl(string) {
     } catch (_) {
         return false;
     }
+}
+
+// ============ INSTAGRAM REELS FUNCTIONS ============
+
+async function getReelSuggestions() {
+    if (!currentData.transcript || !currentData.segments.length) {
+        alert('Please transcribe a video first');
+        return;
+    }
+
+    const suggestionsDiv = document.getElementById('reelSuggestions');
+    suggestionsDiv.innerHTML = '<div class="reel-loading"><div class="reel-loading-spinner"></div><p>Analyzing for engaging moments...</p></div>';
+
+    try {
+        const response = await fetch(`${API_BASE}/api/reels/suggest`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                transcript: currentData.transcript,
+                segments: currentData.segments,
+                title: currentData.title,
+                chapters: currentData.chapters
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to get suggestions');
+        }
+
+        const data = await response.json();
+        reelSuggestions = data.ai_suggestions || [];
+        chapterSuggestions = data.chapter_suggestions || [];
+
+        displayReelSuggestions();
+        statusText.textContent = `Found ${reelSuggestions.length} AI suggestions`;
+
+    } catch (error) {
+        suggestionsDiv.innerHTML = `<p class="placeholder-text">Error: ${error.message}</p>`;
+        statusText.textContent = 'Failed to get reel suggestions';
+    }
+}
+
+function displayReelSuggestions() {
+    const suggestionsDiv = document.getElementById('reelSuggestions');
+
+    if (reelSuggestions.length === 0) {
+        suggestionsDiv.innerHTML = '<p class="placeholder-text">No suggestions found. Try manual selection.</p>';
+        return;
+    }
+
+    suggestionsDiv.innerHTML = reelSuggestions.map((suggestion, index) => {
+        const scorePercent = Math.round(suggestion.hook_score * 100);
+        const scoreClass = scorePercent >= 80 ? '' : (scorePercent >= 60 ? 'medium' : 'low');
+        const isSelected = reelQueue.some(q =>
+            q.start_time === suggestion.start_time && q.end_time === suggestion.end_time
+        );
+        const startTime = formatTime(suggestion.start_time);
+        const endTime = formatTime(suggestion.end_time);
+        const duration = Math.round(suggestion.end_time - suggestion.start_time);
+
+        return `
+            <div class="reel-suggestion-item ${isSelected ? 'selected' : ''}"
+                 data-index="${index}"
+                 onclick="toggleReelSelection(${index}, 'ai')">
+                <div class="reel-suggestion-header">
+                    <span class="reel-suggestion-title">${suggestion.title}</span>
+                    <span class="reel-score ${scoreClass}">${scorePercent}%</span>
+                </div>
+                <div class="reel-suggestion-time">${startTime} - ${endTime} (${duration}s)</div>
+                <div class="reel-suggestion-reason">${suggestion.hook_reason}</div>
+            </div>
+        `;
+    }).join('');
+}
+
+function toggleReelSelection(index, source) {
+    const suggestions = source === 'ai' ? reelSuggestions : chapterSuggestions;
+    const suggestion = suggestions[index];
+
+    if (!suggestion) return;
+
+    // Check if already in queue
+    const existingIndex = reelQueue.findIndex(q =>
+        q.start_time === suggestion.start_time && q.end_time === suggestion.end_time
+    );
+
+    if (existingIndex >= 0) {
+        // Remove from queue
+        reelQueue.splice(existingIndex, 1);
+    } else {
+        // Add to queue
+        reelQueue.push({
+            ...suggestion,
+            source: source
+        });
+    }
+
+    updateReelQueue();
+    displayReelSuggestions();
+}
+
+function addManualReel() {
+    const startInput = document.getElementById('reelStartTime');
+    const endInput = document.getElementById('reelEndTime');
+    const titleInput = document.getElementById('reelTitle');
+
+    const startTime = parseTime(startInput.value);
+    const endTime = parseTime(endInput.value);
+    const title = titleInput.value.trim() || 'Manual Clip';
+
+    // Validation
+    if (startTime === null) {
+        alert('Please enter a valid start time (MM:SS)');
+        return;
+    }
+    if (endTime === null) {
+        alert('Please enter a valid end time (MM:SS)');
+        return;
+    }
+    if (endTime <= startTime) {
+        alert('End time must be after start time');
+        return;
+    }
+
+    const duration = endTime - startTime;
+    if (duration < 5) {
+        alert('Clip must be at least 5 seconds');
+        return;
+    }
+    if (duration > 60) {
+        alert('Clip cannot exceed 60 seconds');
+        return;
+    }
+
+    // Add to queue
+    reelQueue.push({
+        start_time: startTime,
+        end_time: endTime,
+        title: title,
+        hook_score: 0.5,
+        hook_reason: 'Manual selection',
+        source: 'manual'
+    });
+
+    // Clear inputs
+    startInput.value = '';
+    endInput.value = '';
+    titleInput.value = '';
+
+    updateReelQueue();
+    statusText.textContent = `Added "${title}" to reel queue`;
+}
+
+function updateReelQueue() {
+    const queueDiv = document.getElementById('reelQueue');
+    const countSpan = document.getElementById('reelQueueCount');
+    const generateBtn = document.getElementById('generateReelsBtn');
+
+    countSpan.textContent = reelQueue.length;
+    generateBtn.disabled = reelQueue.length === 0;
+
+    if (reelQueue.length === 0) {
+        queueDiv.innerHTML = '<p class="placeholder-text">No clips selected</p>';
+        return;
+    }
+
+    queueDiv.innerHTML = reelQueue.map((item, index) => {
+        const startTime = formatTime(item.start_time);
+        const endTime = formatTime(item.end_time);
+        const duration = Math.round(item.end_time - item.start_time);
+
+        return `
+            <div class="reel-queue-item">
+                <div class="reel-queue-item-info">
+                    <div class="reel-queue-item-title">${item.title}</div>
+                    <div class="reel-queue-item-time">${startTime} - ${endTime} (${duration}s)</div>
+                </div>
+                <button class="reel-queue-remove" onclick="removeFromReelQueue(${index})">✕</button>
+            </div>
+        `;
+    }).join('');
+}
+
+function removeFromReelQueue(index) {
+    reelQueue.splice(index, 1);
+    updateReelQueue();
+    displayReelSuggestions();
+}
+
+async function generateReels() {
+    if (reelQueue.length === 0) {
+        alert('Please select at least one clip');
+        return;
+    }
+
+    if (!currentData.url) {
+        alert('Video URL not available. Please transcribe a video first.');
+        return;
+    }
+
+    const includeCaptions = document.getElementById('includeReelCaptions').checked;
+    const blurBackground = document.getElementById('blurReelBackground').checked;
+
+    const generateBtn = document.getElementById('generateReelsBtn');
+    generateBtn.disabled = true;
+    generateBtn.textContent = '⏳ Generating...';
+
+    const queueDiv = document.getElementById('reelQueue');
+
+    // Process each reel in queue
+    for (let i = 0; i < reelQueue.length; i++) {
+        const item = reelQueue[i];
+        statusText.textContent = `Generating reel ${i + 1} of ${reelQueue.length}...`;
+
+        try {
+            // Start generation job
+            const response = await fetch(`${API_BASE}/api/reels/generate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    url: currentData.url,
+                    start_time: item.start_time,
+                    end_time: item.end_time,
+                    title: item.title,
+                    segments: currentData.segments,
+                    include_captions: includeCaptions,
+                    blur_background: blurBackground
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to start reel generation');
+            }
+
+            const { job_id } = await response.json();
+
+            // Poll for completion
+            const result = await pollReelJobStatus(job_id);
+
+            if (result.status === 'complete') {
+                // Update queue item to show download button
+                const reelId = result.result.reel_id;
+                item.ready = true;
+                item.reel_id = reelId;
+                displayReelDownloads();
+            } else {
+                throw new Error(result.message || 'Generation failed');
+            }
+
+        } catch (error) {
+            alert(`Error generating "${item.title}": ${error.message}`);
+        }
+    }
+
+    generateBtn.disabled = false;
+    generateBtn.textContent = '🎬 Generate Reels';
+    statusText.textContent = 'Reel generation complete';
+}
+
+async function pollReelJobStatus(jobId) {
+    const pollInterval = 2000;
+    const maxAttempts = 150; // 5 minutes max
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const response = await fetch(`${API_BASE}/api/reels/job/${jobId}`);
+        const job = await response.json();
+
+        statusText.textContent = `${job.message} (${job.progress}%)`;
+
+        if (job.status === 'complete' || job.status === 'error') {
+            return job;
+        }
+
+        await new Promise(resolve => setTimeout(resolve, pollInterval));
+    }
+
+    return { status: 'error', message: 'Timeout waiting for reel generation' };
+}
+
+function displayReelDownloads() {
+    const queueDiv = document.getElementById('reelQueue');
+    const readyReels = reelQueue.filter(item => item.ready);
+
+    if (readyReels.length === 0) {
+        updateReelQueue();
+        return;
+    }
+
+    queueDiv.innerHTML = reelQueue.map((item, index) => {
+        const startTime = formatTime(item.start_time);
+        const endTime = formatTime(item.end_time);
+
+        if (item.ready) {
+            return `
+                <div class="reel-download-item">
+                    <div class="reel-queue-item-info">
+                        <div class="reel-queue-item-title">${item.title}</div>
+                        <div class="reel-queue-item-time">${startTime} - ${endTime}</div>
+                    </div>
+                    <button class="reel-download-btn" onclick="downloadReel('${item.reel_id}', '${item.title}')">
+                        📥 Download
+                    </button>
+                </div>
+            `;
+        } else {
+            return `
+                <div class="reel-queue-item">
+                    <div class="reel-queue-item-info">
+                        <div class="reel-queue-item-title">${item.title}</div>
+                        <div class="reel-queue-item-time">${startTime} - ${endTime}</div>
+                    </div>
+                    <button class="reel-queue-remove" onclick="removeFromReelQueue(${index})">✕</button>
+                </div>
+            `;
+        }
+    }).join('');
+}
+
+async function downloadReel(reelId, title) {
+    statusText.textContent = 'Downloading reel...';
+
+    try {
+        const response = await fetch(`${API_BASE}/api/reels/download/${reelId}`);
+
+        if (!response.ok) {
+            throw new Error('Download failed');
+        }
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${title.replace(/[^a-zA-Z0-9]/g, '_')}_reel.mp4`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        a.remove();
+
+        statusText.textContent = 'Reel downloaded';
+
+    } catch (error) {
+        alert('Download error: ' + error.message);
+        statusText.textContent = 'Download failed';
+    }
+}
+
+// Helper: Format seconds to MM:SS
+function formatTime(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+}
+
+// Helper: Parse MM:SS to seconds
+function parseTime(timeStr) {
+    if (!timeStr) return null;
+
+    const parts = timeStr.trim().split(':');
+    if (parts.length === 2) {
+        const mins = parseInt(parts[0], 10);
+        const secs = parseInt(parts[1], 10);
+        if (!isNaN(mins) && !isNaN(secs)) {
+            return mins * 60 + secs;
+        }
+    }
+    return null;
 }

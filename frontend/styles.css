@@ -171,6 +171,10 @@ body {
     width: 50px;
 }
 
+.toolbar-select.language-select {
+    width: 100px;
+}
+
 .toolbar-divider {
     width: 1px;
     height: 24px;
@@ -296,7 +300,8 @@ body {
     border-right: 1px solid #aca899;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .sidebar-section {
@@ -339,6 +344,29 @@ body {
 .chapter-item:hover {
     background: #e8f0fe;
     border-color: #316ac5;
+}
+
+.chapter-item {
+    position: relative;
+}
+
+.chapter-reel-btn {
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 12px;
+    opacity: 0.5;
+    padding: 2px 4px;
+    border-radius: 3px;
+}
+
+.chapter-reel-btn:hover {
+    opacity: 1;
+    background: #e3f2fd;
 }
 
 .chapter-time {
@@ -654,4 +682,306 @@ body {
 ::selection {
     background: #316ac5;
     color: white;
+}
+
+/* ============ INSTAGRAM REELS SECTION ============ */
+
+.reels-section {
+    flex: 0 0 auto !important;
+    max-height: 400px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.reels-section .sidebar-content {
+    max-height: 120px;
+    overflow-y: auto;
+}
+
+/* Reels Tabs */
+.reels-tabs {
+    display: flex;
+    border-bottom: 1px solid #ccc;
+    background: #f0f0f0;
+}
+
+.reel-tab {
+    flex: 1;
+    padding: 6px 8px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 11px;
+    color: #666;
+    border-bottom: 2px solid transparent;
+}
+
+.reel-tab:hover {
+    background: #e8e8e8;
+}
+
+.reel-tab.active {
+    color: #0066cc;
+    border-bottom-color: #0066cc;
+    background: #fff;
+}
+
+.reels-tab-content {
+    padding: 8px;
+}
+
+/* Reel Suggestion Items */
+.reel-suggestion-item {
+    padding: 8px;
+    margin-bottom: 6px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.reel-suggestion-item:hover {
+    border-color: #0066cc;
+    background: #f0f7ff;
+}
+
+.reel-suggestion-item.selected {
+    border-color: #00aa00;
+    background: #f0fff0;
+}
+
+.reel-suggestion-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.reel-suggestion-title {
+    font-size: 11px;
+    font-weight: bold;
+    color: #333;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.reel-score {
+    background: linear-gradient(180deg, #4caf50 0%, #2e7d32 100%);
+    color: white;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 9px;
+    font-weight: bold;
+    margin-left: 6px;
+}
+
+.reel-score.medium {
+    background: linear-gradient(180deg, #ff9800 0%, #f57c00 100%);
+}
+
+.reel-score.low {
+    background: linear-gradient(180deg, #9e9e9e 0%, #757575 100%);
+}
+
+.reel-suggestion-time {
+    font-size: 10px;
+    color: #0066cc;
+    margin-bottom: 2px;
+}
+
+.reel-suggestion-reason {
+    font-size: 9px;
+    color: #666;
+    font-style: italic;
+}
+
+/* Manual Reel Form */
+.manual-reel-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.time-input-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.time-input-group label {
+    font-size: 10px;
+    color: #666;
+    width: 55px;
+}
+
+.time-input {
+    flex: 1;
+    padding: 4px 6px;
+    border: 1px solid #7f9db9;
+    border-radius: 2px;
+    font-size: 11px;
+    width: 60px;
+}
+
+.reel-title-input {
+    flex: 1;
+    padding: 4px 6px;
+    border: 1px solid #7f9db9;
+    border-radius: 2px;
+    font-size: 11px;
+}
+
+/* Reel Queue */
+.reel-queue-section {
+    border-top: 1px solid #ddd;
+    padding: 8px;
+    margin-top: 8px;
+}
+
+.reel-queue-section h4 {
+    font-size: 11px;
+    color: #333;
+    margin-bottom: 6px;
+}
+
+.reel-queue {
+    max-height: 80px;
+    overflow-y: auto;
+}
+
+.reel-queue-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 6px;
+    margin-bottom: 4px;
+    background: #e8f5e9;
+    border: 1px solid #c8e6c9;
+    border-radius: 3px;
+    font-size: 10px;
+}
+
+.reel-queue-item-info {
+    flex: 1;
+    overflow: hidden;
+}
+
+.reel-queue-item-title {
+    font-weight: bold;
+    color: #333;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.reel-queue-item-time {
+    color: #666;
+    font-size: 9px;
+}
+
+.reel-queue-remove {
+    background: none;
+    border: none;
+    color: #c00;
+    cursor: pointer;
+    font-size: 12px;
+    padding: 2px 4px;
+}
+
+.reel-queue-remove:hover {
+    color: #f00;
+}
+
+/* Reel Options */
+.reel-options {
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.reel-option-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    color: #666;
+    cursor: pointer;
+}
+
+.reel-option-checkbox input {
+    margin: 0;
+}
+
+/* Reel Action Buttons */
+.reel-action-btn {
+    background: linear-gradient(180deg, #e1bee7 0%, #ce93d8 100%);
+    border-color: #ab47bc;
+}
+
+.reel-action-btn:hover {
+    background: linear-gradient(180deg, #ce93d8 0%, #ba68c8 100%);
+}
+
+.primary-reel-btn {
+    background: linear-gradient(180deg, #ff6f00 0%, #e65100 100%);
+    color: white;
+    border-color: #bf360c;
+    font-weight: bold;
+}
+
+.primary-reel-btn:hover:not(:disabled) {
+    background: linear-gradient(180deg, #ff8f00 0%, #ef6c00 100%);
+}
+
+.primary-reel-btn:disabled {
+    background: linear-gradient(180deg, #bdbdbd 0%, #9e9e9e 100%);
+    color: #666;
+    cursor: not-allowed;
+}
+
+/* Loading state for reels */
+.reel-loading {
+    text-align: center;
+    padding: 20px;
+}
+
+.reel-loading-spinner {
+    width: 24px;
+    height: 24px;
+    border: 3px solid #ddd;
+    border-top: 3px solid #ff6f00;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 10px;
+}
+
+/* Reel Download Ready */
+.reel-download-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px;
+    margin-bottom: 6px;
+    background: #e3f2fd;
+    border: 1px solid #90caf9;
+    border-radius: 4px;
+}
+
+.reel-download-btn {
+    background: linear-gradient(180deg, #4caf50 0%, #388e3c 100%);
+    color: white;
+    border: 1px solid #2e7d32;
+    padding: 4px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 10px;
+}
+
+.reel-download-btn:hover {
+    background: linear-gradient(180deg, #66bb6a 0%, #43a047 100%);
 }
