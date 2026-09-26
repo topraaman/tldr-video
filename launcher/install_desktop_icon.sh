@@ -2,11 +2,24 @@
 # Creates "TLDR.video.app" on your Desktop. Double-click it to start the
 # server (if needed) and open the page in your browser.
 # Re-run this script if you move the repository folder.
+#
+# Options:
+#   --login      also open TLDR.video automatically every time you log in
+#   --no-login   stop opening it at login
 
 set -e
 
 LAUNCHER_DIR="$(cd "$(dirname "$0")" && pwd)"
 APP="$HOME/Desktop/TLDR.video.app"
+LOGIN_AGENT="$HOME/Library/LaunchAgents/local.tldrvideo.launcher.plist"
+LOGIN_MODE=""
+for arg in "$@"; do
+    case "$arg" in
+        --login) LOGIN_MODE="on" ;;
+        --no-login) LOGIN_MODE="off" ;;
+        *) echo "Unknown option: $arg (use --login or --no-login)"; exit 1 ;;
+    esac
+done
 
 if [ "$(uname)" != "Darwin" ]; then
     echo "This installer is for macOS only."
@@ -52,3 +65,29 @@ rm -rf "$(dirname "$ICONSET")"
 touch "$APP"
 echo "✅ Created $APP"
 echo "   Double-click it to start TLDR.video. Drag it to the Dock to pin it."
+
+if [ "$LOGIN_MODE" = "on" ]; then
+    mkdir -p "$(dirname "$LOGIN_AGENT")"
+    cat > "$LOGIN_AGENT" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key><string>local.tldrvideo.launcher</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/open</string>
+        <string>$APP</string>
+    </array>
+    <key>RunAtLoad</key><true/>
+</dict>
+</plist>
+PLIST
+    launchctl unload "$LOGIN_AGENT" >/dev/null 2>&1 || true
+    launchctl load "$LOGIN_AGENT" >/dev/null 2>&1 || true
+    echo "✅ TLDR.video will also open every time you log in (undo with --no-login)."
+elif [ "$LOGIN_MODE" = "off" ]; then
+    launchctl unload "$LOGIN_AGENT" >/dev/null 2>&1 || true
+    rm -f "$LOGIN_AGENT"
+    echo "✅ TLDR.video will no longer open at login."
+fi
