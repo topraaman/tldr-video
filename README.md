@@ -145,7 +145,7 @@ The app has three tabs (the URL you paste is shared between them):
 | Tab | What it does |
 |-----|--------------|
 | 📝 **Transcriber** | Transcript, chapters, takeaways, Reels, PDF/DOCX export |
-| 🖼️ **Thumbnail Studio** | Extract the thumbnail, upload your own image and background, add headline text, drag to position, save PNG/JPG |
+| 🖼️ **Thumbnail Studio** | Extract the thumbnail, then **Use My Photo** to recreate it with your own picture: cropped to the same 1280×720 format, color-graded to match the original, headline in the original's palette. Add an overlay image and text, drag to position, save PNG/JPG |
 | 📊 **Video Analytics** | Performance, engagement, reach and SEO report from public video data (printable) |
 
 > Analytics uses public data only. Impressions, click-through rate and watch time are private to the channel owner and live in YouTube Studio.
@@ -176,6 +176,7 @@ tldr-video/
 │   ├── app.js               # Transcriber editor & API interactions
 │   ├── workspace.js         # Tabs, shared URL box, video-info fetch
 │   ├── thumbnail_studio.js  # Canvas thumbnail editor
+│   ├── color_match.js       # Palette extraction & color grading to match a thumbnail
 │   └── video_analytics.js   # Analytics report rendering
 ├── downloads/               # Temporary audio/thumbnail files
 ├── start.sh                 # Startup script

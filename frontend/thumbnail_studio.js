@@ -13,8 +13,13 @@ const studio = {
     userImg: null,
     user: { x: 960, y: 380 },
     text: { x: 640, y: 590 },
+    bg: { x: 0, y: 0 },  // pan offset for "My photo" background
+    // Style of the original thumbnail, used to recreate it with the user's photo
+    targetStats: null,
+    palette: [],
+    gradedCache: new Map(),
     // Hit boxes from the last draw, used for dragging
-    bounds: { user: null, text: null },
+    bounds: { user: null, text: null, bg: null },
     drag: null
 };
 
@@ -48,7 +53,11 @@ const studioEls = {
     textColor: document.getElementById('thumbTextColor'),
     textStroke: document.getElementById('thumbTextStroke'),
     textUpper: document.getElementById('thumbTextUpper'),
-    textShadow: document.getElementById('thumbTextShadow')
+    textShadow: document.getElementById('thumbTextShadow'),
+    matchColors: document.getElementById('matchColors'),
+    matchStrength: document.getElementById('matchStrength'),
+    paletteSwatches: document.getElementById('paletteSwatches'),
+    applyPaletteBtn: document.getElementById('applyPaletteBtn')
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -65,8 +74,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const img = await loadImageFile(studioEls.bgUpload.files[0]);
         if (!img) return;
         studio.bgUploadImg = img;
+        studio.bg = { x: 0, y: 0 };
         studioEls.bgSource.value = 'upload';
+        // Recreate the original's look: its palette for the text, its title as headline
+        if (studio.palette.length) applyPaletteToText();
+        if (!studioEls.text.value && studio.videoTitle) {
+            studioEls.text.value = studio.videoTitle.split(/\s+/).slice(0, 4).join(' ');
+        }
         drawThumbnail();
+        statusText.textContent = studio.targetStats
+            ? 'Photo added - colors matched to the original thumbnail'
+            : 'Photo added - extract a thumbnail to match its colors';
     });
     studioEls.userUpload.addEventListener('change', async () => {
         const img = await loadImageFile(studioEls.userUpload.files[0]);
@@ -82,8 +100,13 @@ document.addEventListener('DOMContentLoaded', () => {
         drawThumbnail();
     });
 
+    studioEls.applyPaletteBtn.addEventListener('click', () => {
+        applyPaletteToText();
+        drawThumbnail();
+    });
+
     // Any control change redraws
-    [studioEls.bgSource, studioEls.bgColor, studioEls.bgDarken, studioEls.bgBlur,
+    [studioEls.matchColors, studioEls.matchStrength, studioEls.bgSource, studioEls.bgColor, studioEls.bgDarken, studioEls.bgBlur,
      studioEls.userSize, studioEls.userShape, studioEls.userOutline, studioEls.userOutlineColor,
      studioEls.text, studioEls.font, studioEls.textSize, studioEls.textColor,
      studioEls.textStroke, studioEls.textUpper, studioEls.textShadow
@@ -105,7 +128,12 @@ function loadStudioThumbnail(filename, { title = '', channel = '' } = {}) {
         studio.thumbnailFilename = filename;
         studio.videoTitle = title;
         studio.bgThumbImg = img;
-        studioEls.bgSource.value = 'thumbnail';
+        studio.targetStats = colorStats(img);
+        studio.palette = extractPalette(img);
+        studio.gradedCache.clear();
+        renderPalette();
+        // Keep the user's photo as the background if they already added one
+        studioEls.bgSource.value = studio.bgUploadImg ? 'upload' : 'thumbnail';
         studioEls.original.src = src;
         studioEls.original.style.display = 'block';
         studioEls.originalEmpty.style.display = 'none';
@@ -158,7 +186,7 @@ function drawThumbnail() {
     studio.bounds.user = studio.userImg ? drawUserImage(ctx) : null;
     studio.bounds.text = drawHeadline(ctx);
 
-    if (studio.drag) {
+    if (studio.drag && studio.drag.layer !== 'bg') {
         const b = studio.bounds[studio.drag.layer];
         if (b) {
             ctx.setLineDash([12, 8]);
@@ -170,10 +198,26 @@ function drawThumbnail() {
     ctx.restore();
 }
 
+// The user's image, color-graded to match the original thumbnail when enabled
+function styledImage(img) {
+    if (!img || !studio.targetStats || !studioEls.matchColors.checked) return img;
+    const strength = Number(studioEls.matchStrength.value) / 100;
+    const cached = studio.gradedCache.get(img);
+    if (cached && cached.strength === strength) return cached.canvas;
+    const canvas = gradeImage(img, studio.targetStats, strength);
+    studio.gradedCache.set(img, { strength, canvas });
+    return canvas;
+}
+
+function imageSize(img) {
+    return { w: img.naturalWidth || img.width, h: img.naturalHeight || img.height };
+}
+
 function drawBackground(ctx) {
     const source = studioEls.bgSource.value;
     const img = source === 'thumbnail' ? studio.bgThumbImg
-        : source === 'upload' ? studio.bgUploadImg : null;
+        : source === 'upload' ? styledImage(studio.bgUploadImg) : null;
+    studio.bounds.bg = null;
 
     if (!img) {
         ctx.fillStyle = studioEls.bgColor.value;
@@ -192,20 +236,34 @@ function drawBackground(ctx) {
     const blur = Number(studioEls.bgBlur.value);
     // Cover-fit, slightly oversized when blurred so edges stay filled
     const pad = blur * 2;
-    const scale = Math.max((THUMB_W + pad * 2) / img.naturalWidth, (THUMB_H + pad * 2) / img.naturalHeight);
-    const w = img.naturalWidth * scale;
-    const h = img.naturalHeight * scale;
+    const size = imageSize(img);
+    const scale = Math.max((THUMB_W + pad * 2) / size.w, (THUMB_H + pad * 2) / size.h);
+    const w = size.w * scale;
+    const h = size.h * scale;
+    let x = (THUMB_W - w) / 2;
+    let y = (THUMB_H - h) / 2;
+    if (source === 'upload') {
+        // Photo can be dragged to reframe the 16:9 crop; keep the frame covered
+        const maxX = (w - THUMB_W) / 2;
+        const maxY = (h - THUMB_H) / 2;
+        studio.bg.x = Math.min(maxX, Math.max(-maxX, studio.bg.x));
+        studio.bg.y = Math.min(maxY, Math.max(-maxY, studio.bg.y));
+        x += studio.bg.x;
+        y += studio.bg.y;
+        studio.bounds.bg = { x: 0, y: 0, w: THUMB_W, h: THUMB_H };
+    }
     ctx.save();
     if (blur > 0) ctx.filter = `blur(${blur}px)`;
-    ctx.drawImage(img, (THUMB_W - w) / 2, (THUMB_H - h) / 2, w, h);
+    ctx.drawImage(img, x, y, w, h);
     ctx.restore();
 }
 
 function drawUserImage(ctx) {
-    const img = studio.userImg;
+    const img = styledImage(studio.userImg);
+    const size = imageSize(img);
     const shape = studioEls.userShape.value;
     const h = THUMB_H * Number(studioEls.userSize.value) / 100;
-    let w = h * img.naturalWidth / img.naturalHeight;
+    let w = h * size.w / size.h;
     if (shape === 'circle') w = h;
     const x = studio.user.x - w / 2;
     const y = studio.user.y - h / 2;
@@ -223,9 +281,9 @@ function drawUserImage(ctx) {
     ctx.clip();
     if (shape === 'circle') {
         // Cover-crop the image into the circle
-        const s = Math.max(w / img.naturalWidth, h / img.naturalHeight);
-        const iw = img.naturalWidth * s;
-        const ih = img.naturalHeight * s;
+        const s = Math.max(w / size.w, h / size.h);
+        const iw = size.w * s;
+        const ih = size.h * s;
         ctx.drawImage(img, studio.user.x - iw / 2, studio.user.y - ih / 2, iw, ih);
     } else {
         ctx.drawImage(img, x, y, w, h);
@@ -307,7 +365,7 @@ function canvasPoint(e) {
 
 function hitLayer(p) {
     // Text is drawn on top, so it wins
-    for (const layer of ['text', 'user']) {
+    for (const layer of ['text', 'user', 'bg']) {
         const b = studio.bounds[layer];
         if (b && p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h) return layer;
     }
@@ -331,8 +389,12 @@ function onCanvasPointerMove(e) {
         return;
     }
     const pos = studio[studio.drag.layer];
-    pos.x = Math.min(THUMB_W, Math.max(0, p.x + studio.drag.dx));
-    pos.y = Math.min(THUMB_H, Math.max(0, p.y + studio.drag.dy));
+    pos.x = p.x + studio.drag.dx;
+    pos.y = p.y + studio.drag.dy;
+    if (studio.drag.layer !== 'bg') {  // background clamps itself while drawing
+        pos.x = Math.min(THUMB_W, Math.max(0, pos.x));
+        pos.y = Math.min(THUMB_H, Math.max(0, pos.y));
+    }
     drawThumbnail();
 }
 
@@ -389,6 +451,8 @@ function resetStudio() {
     studio.userImg = null;
     studio.user = { x: 960, y: 380 };
     studio.text = { x: 640, y: 590 };
+    studio.bg = { x: 0, y: 0 };
+    studio.gradedCache.clear();
     studioEls.bgUpload.value = '';
     studioEls.userUpload.value = '';
     studioEls.removeUserBtn.disabled = true;
@@ -397,6 +461,34 @@ function resetStudio() {
     studioEls.bgBlur.value = 0;
     studioEls.userSize.value = 80;
     studioEls.textSize.value = 110;
+    studioEls.matchColors.checked = true;
+    studioEls.matchStrength.value = 80;
     drawThumbnail();
     statusText.textContent = 'Thumbnail reset';
+}
+
+// ---------- Original thumbnail palette ----------
+
+function renderPalette() {
+    const box = studioEls.paletteSwatches;
+    box.innerHTML = '';
+    studio.palette.forEach(c => {
+        const swatch = document.createElement('button');
+        swatch.className = 'palette-swatch';
+        swatch.style.background = c.hex;
+        swatch.title = `${c.hex} - click: text color, Shift+click: outline color`;
+        swatch.addEventListener('click', (e) => {
+            (e.shiftKey ? studioEls.textStroke : studioEls.textColor).value = c.hex;
+            drawThumbnail();
+        });
+        box.appendChild(swatch);
+    });
+    studioEls.applyPaletteBtn.disabled = !studio.palette.length;
+}
+
+function applyPaletteToText() {
+    const colors = textColorsFromPalette(studio.palette);
+    if (!colors) return;
+    studioEls.textColor.value = colors.fill;
+    studioEls.textStroke.value = colors.outline;
 }

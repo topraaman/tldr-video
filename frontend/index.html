@@ -315,16 +315,33 @@
                 </div>
 
                 <div class="sidebar-section fixed-section">
+                    <h3>✨ Use My Photo</h3>
+                    <div class="sidebar-content form-grid">
+                        <label for="bgUpload">Photo</label>
+                        <input type="file" id="bgUpload" accept="image/*" class="file-input">
+                        <label for="matchColors">Colors</label>
+                        <label class="check-label"><input type="checkbox" id="matchColors" checked> Match original thumbnail</label>
+                        <label for="matchStrength">Strength</label>
+                        <input type="range" id="matchStrength" min="0" max="100" value="80">
+                        <label>Palette</label>
+                        <div class="palette-swatches" id="paletteSwatches">
+                            <span class="placeholder-text">Extract a thumbnail first</span>
+                        </div>
+                        <span></span>
+                        <button id="applyPaletteBtn" class="toolbar-btn small-btn" disabled>🎨 Use palette for text</button>
+                    </div>
+                    <p class="studio-note">Your photo is cropped to 1280 × 720 like the original, and its colors are graded to match. Drag the photo on the canvas to reframe it. Click a palette color to use it for the text (Shift+click for the outline).</p>
+                </div>
+
+                <div class="sidebar-section fixed-section">
                     <h3>🎨 Background</h3>
                     <div class="sidebar-content form-grid">
                         <label for="bgSource">Source</label>
                         <select id="bgSource" class="toolbar-select">
                             <option value="thumbnail">Extracted thumbnail</option>
-                            <option value="upload">Uploaded image</option>
+                            <option value="upload">My photo</option>
                             <option value="color">Solid color</option>
                         </select>
-                        <label for="bgUpload">Upload</label>
-                        <input type="file" id="bgUpload" accept="image/*" class="file-input">
                         <label for="bgColor">Color</label>
                         <input type="color" id="bgColor" value="#0a246a">
                         <label for="bgDarken">Darken</label>
@@ -391,7 +408,7 @@
             <div class="editor-container">
                 <div class="paper paper-landscape">
                     <div class="title-editor">Custom Thumbnail</div>
-                    <p class="doc-hint">Drag your image or the text on the canvas to move them. Output is 1280 × 720, YouTube's recommended size.</p>
+                    <p class="doc-hint">Drag your photo, your image or the text on the canvas to move them. Output is 1280 × 720, the same format as YouTube thumbnails.</p>
                     <canvas id="thumbCanvas" class="thumb-canvas" width="1280" height="720"></canvas>
                 </div>
             </div>
@@ -496,6 +513,7 @@
 
     <script src="/static/app.js"></script>
     <script src="/static/workspace.js"></script>
+    <script src="/static/color_match.js"></script>
     <script src="/static/thumbnail_studio.js"></script>
     <script src="/static/video_analytics.js"></script>
 </body>

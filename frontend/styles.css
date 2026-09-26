@@ -1357,3 +1357,30 @@ body {
         padding: 0;
     }
 }
+
+/* ============ STUDIO: MATCH ORIGINAL STYLE ============ */
+
+.palette-swatches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.palette-swatch {
+    width: 22px;
+    height: 22px;
+    border: 1px solid #666;
+    cursor: pointer;
+    padding: 0;
+}
+
+.palette-swatch:hover {
+    border: 2px solid #000;
+}
+
+.studio-note {
+    font-size: 10px;
+    color: #666;
+    padding: 0 8px 8px;
+    line-height: 1.35;
+}
