@@ -126,6 +126,14 @@ To also open TLDR.video every time you log in to your Mac:
 
 Re-run the installer if you move the repo folder.
 
+**Already had your own TLDR launcher?** Keep it and remove the new one:
+
+```bash
+./launcher/merge_into_old_launcher.sh
+```
+
+It finds your original launcher (or pass its path), backs it up to `~/.tldr-video/`, updates it to use the latest launcher behavior while keeping its name and icon, deletes `TLDR.video.app`, and moves open-at-login to it. After that, `install_desktop_icon.sh` reuses your launcher instead of creating a second one.
+
 ### Manual Start
 
 ```bash

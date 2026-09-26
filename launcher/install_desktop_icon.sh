@@ -6,6 +6,8 @@
 # Options:
 #   --login      also open TLDR.video automatically every time you log in
 #   --no-login   stop opening it at login
+#   --new-app    create TLDR.video.app even if you kept an older launcher
+#                with merge_into_old_launcher.sh
 
 set -e
 
@@ -13,13 +15,27 @@ LAUNCHER_DIR="$(cd "$(dirname "$0")" && pwd)"
 APP="$HOME/Desktop/TLDR.video.app"
 LOGIN_AGENT="$HOME/Library/LaunchAgents/local.tldrvideo.launcher.plist"
 LOGIN_MODE=""
+NEW_APP_FLAG=""
 for arg in "$@"; do
     case "$arg" in
         --login) LOGIN_MODE="on" ;;
         --no-login) LOGIN_MODE="off" ;;
-        *) echo "Unknown option: $arg (use --login or --no-login)"; exit 1 ;;
+        --new-app) NEW_APP_FLAG=1 ;;
+        *) echo "Unknown option: $arg (use --login, --no-login or --new-app)"; exit 1 ;;
     esac
 done
+
+# If you kept your original launcher (merge_into_old_launcher.sh), use it
+# instead of creating a second one
+KEPT_LAUNCHER_FILE="$HOME/.tldr-video/launcher-path"
+USE_EXISTING=""
+if [ -z "$NEW_APP_FLAG" ] && [ -f "$KEPT_LAUNCHER_FILE" ]; then
+    KEPT="$(cat "$KEPT_LAUNCHER_FILE")"
+    if [ -e "$KEPT" ]; then
+        APP="$KEPT"
+        USE_EXISTING=1
+    fi
+fi
 
 if [ "$(uname)" != "Darwin" ]; then
     echo "This installer is for macOS only."
@@ -28,6 +44,9 @@ fi
 
 chmod +x "$LAUNCHER_DIR/launch.sh" "$LAUNCHER_DIR/run_server.sh" "$LAUNCHER_DIR/../start.sh"
 
+if [ -n "$USE_EXISTING" ]; then
+    echo "✅ Using your launcher: $APP (it already runs the latest launcher code)"
+else
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
@@ -65,6 +84,7 @@ rm -rf "$(dirname "$ICONSET")"
 touch "$APP"
 echo "✅ Created $APP"
 echo "   Double-click it to start TLDR.video. Drag it to the Dock to pin it."
+fi
 
 if [ "$LOGIN_MODE" = "on" ]; then
     mkdir -p "$(dirname "$LOGIN_AGENT")"
