@@ -33,7 +33,11 @@ from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 from typing import Optional
 
-from youtube_handler import extract_audio, cleanup_audio, extract_video, cleanup_video
+from youtube_handler import (
+    extract_audio, cleanup_audio, extract_video, cleanup_video,
+    fetch_video_info, best_thumbnail_url, download_thumbnail
+)
+from analytics import build_analytics
 from transcriber import transcribe_audio, segments_to_text_with_timestamps
 from llm_processor import (
     generate_chapters_and_takeaways,
@@ -165,6 +169,38 @@ async def get_thumbnail(filename: str):
         filename=filename,
         headers={"Content-Disposition": f'attachment; filename="{filename}"'}
     )
+
+
+class VideoInfoRequest(BaseModel):
+    url: str
+
+
+@app.post("/api/video-info")
+async def video_info(request: VideoInfoRequest, req: Request):
+    """
+    Fetch public metadata for a video: HD thumbnail (for Thumbnail Studio)
+    plus views, engagement, reach and SEO analytics.
+    """
+    client_ip = req.client.host if req.client else "unknown"
+    if not _check_rate_limit(client_ip):
+        raise HTTPException(status_code=429, detail="Too many requests. Please wait before submitting again.")
+
+    loop = asyncio.get_event_loop()
+    try:
+        info = await loop.run_in_executor(None, fetch_video_info, request.url)
+    except Exception as e:
+        logger.error("Video info fetch failed: %s", e)
+        raise HTTPException(status_code=502, detail="Could not fetch video info. Check the URL and try again.")
+
+    studio_id = f"{info.get('id', 'video')}_studio"
+    thumbnail_path = await loop.run_in_executor(None, download_thumbnail, best_thumbnail_url(info), studio_id)
+    if not thumbnail_path and info.get("thumbnail"):
+        # Max-res variant is missing on some videos; fall back to the default thumbnail
+        thumbnail_path = await loop.run_in_executor(None, download_thumbnail, info["thumbnail"], studio_id)
+
+    result = build_analytics(info)
+    result["thumbnail_filename"] = Path(thumbnail_path).name if thumbnail_path else None
+    return result
 
 
 @app.post("/api/transcribe")

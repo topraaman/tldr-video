@@ -46,10 +46,6 @@ const highlightPalette = document.getElementById('highlightPalette');
 const textColorBtn = document.getElementById('textColorBtn');
 const textColorPalette = document.getElementById('textColorPalette');
 const regenerateBtn = document.getElementById('regenerateBtn');
-const thumbnailSection = document.getElementById('thumbnailSection');
-const thumbnailPreview = document.getElementById('thumbnailPreview');
-const thumbnailInfo = document.getElementById('thumbnailInfo');
-const downloadThumbnailBtn = document.getElementById('downloadThumbnailBtn');
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
@@ -144,11 +140,10 @@ function initializeEventListeners() {
     // Regenerate button
     regenerateBtn.addEventListener('click', regenerateChapters);
 
-    // Download thumbnail button
-    downloadThumbnailBtn.addEventListener('click', downloadThumbnail);
-
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
+        // Formatting shortcuts only apply to the Transcriber document
+        if (!document.getElementById('view-transcriber').classList.contains('active')) return;
         if (e.ctrlKey || e.metaKey) {
             switch (e.key.toLowerCase()) {
                 case 's':
@@ -347,60 +342,9 @@ function displayResults(result) {
 }
 
 function displayThumbnail(thumbnailFilename, channel) {
-    if (thumbnailFilename) {
-        // Show thumbnail section
-        thumbnailSection.style.display = 'block';
-
-        // Set thumbnail image source (serve from API using filename only)
-        thumbnailPreview.src = `${API_BASE}/api/thumbnail/${encodeURIComponent(thumbnailFilename)}`;
-        thumbnailPreview.onerror = () => {
-            thumbnailSection.style.display = 'none';
-        };
-
-        // Show channel info
-        if (channel) {
-            thumbnailInfo.textContent = `Channel: ${channel}`;
-        }
-    } else {
-        thumbnailSection.style.display = 'none';
-    }
-}
-
-async function downloadThumbnail() {
-    if (!currentData.thumbnail_filename) {
-        statusText.textContent = 'No thumbnail available';
-        return;
-    }
-
-    const filename = currentData.thumbnail_filename;
-    const downloadName = `${currentData.title.replace(/[^a-zA-Z0-9]/g, '_')}_thumbnail.jpg`;
-
-    statusText.textContent = 'Downloading thumbnail...';
-
-    try {
-        // Fetch the image as a blob
-        const response = await fetch(`${API_BASE}/api/thumbnail/${encodeURIComponent(filename)}`);
-        if (!response.ok) {
-            throw new Error('Failed to download thumbnail');
-        }
-
-        const blob = await response.blob();
-
-        // Create a blob URL and trigger download
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = downloadName;
-        document.body.appendChild(a);
-        a.click();
-
-        // Cleanup
-        window.URL.revokeObjectURL(url);
-        a.remove();
-
-        statusText.textContent = 'Thumbnail downloaded';
-    } catch (error) {
-        statusText.textContent = 'Failed to download thumbnail: ' + error.message;
+    // Thumbnails now live in the Thumbnail Studio tab
+    if (thumbnailFilename && typeof loadStudioThumbnail === 'function') {
+        loadStudioThumbnail(thumbnailFilename, { title: currentData.title, channel });
     }
 }
 

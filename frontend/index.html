@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video to Transcript - Word 2003 Edition</title>
+    <title>TLDR.video - Word 2003 Edition</title>
     <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
     <!-- Title Bar -->
     <div class="title-bar">
         <span class="title-icon">📄</span>
-        <span>Video to Transcript</span>
+        <span id="windowTitle">TLDR.video - Transcriber</span>
         <div class="window-controls">
             <button class="win-btn minimize">_</button>
             <button class="win-btn maximize">□</button>
@@ -28,11 +28,20 @@
         <div class="menu-item" data-menu="help">Help</div>
     </div>
 
+    <!-- Workspace Tabs -->
+    <div class="workspace-tabs" role="tablist">
+        <button class="workspace-tab active" role="tab" data-view="transcriber">📝 Transcriber</button>
+        <button class="workspace-tab" role="tab" data-view="thumbnail">🖼️ Thumbnail Studio</button>
+        <button class="workspace-tab" role="tab" data-view="analytics">📊 Video Analytics</button>
+    </div>
+
+    <!-- ===================== VIEW 1: TRANSCRIBER ===================== -->
+    <div class="view active" id="view-transcriber">
     <!-- Main Toolbar -->
     <div class="toolbar">
         <!-- URL Input Section -->
         <div class="toolbar-section url-section">
-            <input type="text" id="urlInput" placeholder="Paste YouTube or podcast URL..." class="url-input">
+            <input type="text" id="urlInput" placeholder="Paste YouTube or podcast URL..." class="url-input shared-url">
             <button id="transcribeBtn" class="toolbar-btn primary-btn">
                 <span class="btn-icon">▶</span> Transcribe
             </button>
@@ -155,19 +164,8 @@
 
     <!-- Main Content Area -->
     <div class="main-container">
-        <!-- Sidebar - Thumbnail, Chapters & Takeaways -->
+        <!-- Sidebar - Chapters, Takeaways & Reels -->
         <div class="sidebar" id="sidebar">
-            <!-- Thumbnail Section -->
-            <div class="sidebar-section thumbnail-section" id="thumbnailSection" style="display: none;">
-                <h3>🖼️ Thumbnail</h3>
-                <div class="sidebar-content thumbnail-content">
-                    <img id="thumbnailPreview" src="" alt="Video Thumbnail" class="thumbnail-preview">
-                    <div class="thumbnail-info" id="thumbnailInfo"></div>
-                    <button id="downloadThumbnailBtn" class="sidebar-btn thumbnail-btn">
-                        📥 Download Thumbnail
-                    </button>
-                </div>
-            </div>
             <div class="sidebar-section">
                 <h3>📑 Chapters</h3>
                 <div id="chaptersList" class="sidebar-content">
@@ -269,16 +267,207 @@
             </div>
         </div>
     </div>
+    </div>
+    <!-- ===================== END TRANSCRIBER ===================== -->
+
+    <!-- ===================== VIEW 2: THUMBNAIL STUDIO ===================== -->
+    <div class="view" id="view-thumbnail">
+        <div class="toolbar">
+            <div class="toolbar-section url-section">
+                <input type="text" id="thumbUrlInput" placeholder="Paste YouTube URL..." class="url-input shared-url">
+                <button id="extractThumbBtn" class="toolbar-btn primary-btn">
+                    <span class="btn-icon">🖼️</span> Extract Thumbnail
+                </button>
+            </div>
+            <div class="toolbar-divider"></div>
+            <button class="toolbar-btn" id="downloadOriginalThumbBtn" title="Download the original thumbnail" disabled>
+                <span class="btn-icon">📥</span><span class="btn-label">Original</span>
+            </button>
+            <div class="toolbar-divider"></div>
+            <button class="toolbar-btn" id="saveThumbPngBtn" title="Save custom thumbnail as PNG">
+                <span class="btn-icon">💾</span><span class="btn-label">Save PNG</span>
+            </button>
+            <button class="toolbar-btn" id="saveThumbJpgBtn" title="Save custom thumbnail as JPG (smaller, YouTube limit is 2 MB)">
+                <span class="btn-icon">💾</span><span class="btn-label">Save JPG</span>
+            </button>
+            <div class="toolbar-divider"></div>
+            <button class="toolbar-btn" id="resetThumbBtn" title="Reset all layers">
+                <span class="btn-icon">↺</span><span class="btn-label">Reset</span>
+            </button>
+        </div>
+
+        <div class="ruler">
+            <div class="ruler-marks">
+                <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span>
+            </div>
+        </div>
+
+        <div class="main-container">
+            <div class="sidebar">
+                <div class="sidebar-section fixed-section">
+                    <h3>🖼️ Original Thumbnail</h3>
+                    <div class="sidebar-content thumbnail-content">
+                        <img id="studioOriginal" src="" alt="Original video thumbnail" class="thumbnail-preview" style="display: none;">
+                        <p id="studioOriginalEmpty" class="placeholder-text">Paste a URL and click "Extract Thumbnail", or upload your own background below.</p>
+                        <div class="thumbnail-info" id="studioInfo"></div>
+                    </div>
+                </div>
+
+                <div class="sidebar-section fixed-section">
+                    <h3>🎨 Background</h3>
+                    <div class="sidebar-content form-grid">
+                        <label for="bgSource">Source</label>
+                        <select id="bgSource" class="toolbar-select">
+                            <option value="thumbnail">Extracted thumbnail</option>
+                            <option value="upload">Uploaded image</option>
+                            <option value="color">Solid color</option>
+                        </select>
+                        <label for="bgUpload">Upload</label>
+                        <input type="file" id="bgUpload" accept="image/*" class="file-input">
+                        <label for="bgColor">Color</label>
+                        <input type="color" id="bgColor" value="#0a246a">
+                        <label for="bgDarken">Darken</label>
+                        <input type="range" id="bgDarken" min="0" max="80" value="0">
+                        <label for="bgBlur">Blur</label>
+                        <input type="range" id="bgBlur" min="0" max="20" value="0">
+                    </div>
+                </div>
+
+                <div class="sidebar-section fixed-section">
+                    <h3>👤 Your Image</h3>
+                    <div class="sidebar-content form-grid">
+                        <label for="userImageUpload">Image</label>
+                        <input type="file" id="userImageUpload" accept="image/*" class="file-input">
+                        <label for="userImageSize">Size</label>
+                        <input type="range" id="userImageSize" min="10" max="150" value="80">
+                        <label for="userImageShape">Shape</label>
+                        <select id="userImageShape" class="toolbar-select">
+                            <option value="original">Original</option>
+                            <option value="circle">Circle</option>
+                            <option value="rounded">Rounded</option>
+                        </select>
+                        <label for="userImageOutline">Outline</label>
+                        <div class="inline-controls">
+                            <input type="checkbox" id="userImageOutline" checked>
+                            <input type="color" id="userImageOutlineColor" value="#ffffff">
+                        </div>
+                        <span></span>
+                        <button id="removeUserImageBtn" class="toolbar-btn small-btn" disabled>✕ Remove image</button>
+                    </div>
+                </div>
+
+                <div class="sidebar-section fixed-section">
+                    <h3>🔤 Text</h3>
+                    <div class="sidebar-content form-grid">
+                        <label for="thumbText">Text</label>
+                        <textarea id="thumbText" rows="2" class="thumb-textarea" placeholder="Your headline"></textarea>
+                        <label for="thumbFont">Font</label>
+                        <select id="thumbFont" class="toolbar-select">
+                            <option value="Impact">Impact</option>
+                            <option value="Arial Black">Arial Black</option>
+                            <option value="Arial">Arial</option>
+                            <option value="Georgia">Georgia</option>
+                            <option value="Verdana">Verdana</option>
+                            <option value="Trebuchet MS">Trebuchet MS</option>
+                            <option value="Comic Sans MS">Comic Sans MS</option>
+                        </select>
+                        <label for="thumbTextSize">Size</label>
+                        <input type="range" id="thumbTextSize" min="30" max="220" value="110">
+                        <label for="thumbTextColor">Colors</label>
+                        <div class="inline-controls">
+                            <input type="color" id="thumbTextColor" value="#ffff00" title="Fill">
+                            <input type="color" id="thumbTextStroke" value="#000000" title="Outline">
+                        </div>
+                        <label for="thumbTextUpper">Style</label>
+                        <div class="inline-controls">
+                            <label class="check-label"><input type="checkbox" id="thumbTextUpper" checked> CAPS</label>
+                            <label class="check-label"><input type="checkbox" id="thumbTextShadow" checked> Shadow</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="editor-container">
+                <div class="paper paper-landscape">
+                    <div class="title-editor">Custom Thumbnail</div>
+                    <p class="doc-hint">Drag your image or the text on the canvas to move them. Output is 1280 × 720, YouTube's recommended size.</p>
+                    <canvas id="thumbCanvas" class="thumb-canvas" width="1280" height="720"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- ===================== END THUMBNAIL STUDIO ===================== -->
+
+    <!-- ===================== VIEW 3: VIDEO ANALYTICS ===================== -->
+    <div class="view" id="view-analytics">
+        <div class="toolbar">
+            <div class="toolbar-section url-section">
+                <input type="text" id="analyticsUrlInput" placeholder="Paste YouTube URL..." class="url-input shared-url">
+                <button id="analyzeBtn" class="toolbar-btn primary-btn">
+                    <span class="btn-icon">📊</span> Analyze
+                </button>
+            </div>
+            <div class="toolbar-divider"></div>
+            <button class="toolbar-btn" id="printReportBtn" title="Print or save the report as PDF" disabled>
+                <span class="btn-icon">🖨️</span><span class="btn-label">Print Report</span>
+            </button>
+        </div>
+
+        <div class="ruler">
+            <div class="ruler-marks">
+                <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span>
+            </div>
+        </div>
+
+        <div class="main-container">
+            <div class="sidebar">
+                <div class="sidebar-section fixed-section">
+                    <h3>🔍 SEO Score</h3>
+                    <div class="sidebar-content" id="seoScoreBox">
+                        <p class="placeholder-text">Analyze a video to see its SEO score</p>
+                    </div>
+                </div>
+                <div class="sidebar-section fixed-section">
+                    <h3>📈 At a Glance</h3>
+                    <div class="sidebar-content" id="glanceBox">
+                        <p class="placeholder-text">Views, reach and engagement will appear here</p>
+                    </div>
+                </div>
+                <div class="sidebar-section">
+                    <h3>🏷️ Top Keywords</h3>
+                    <div class="sidebar-content" id="keywordsBox">
+                        <p class="placeholder-text">Keywords from the title, description and tags</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="editor-container">
+                <div class="paper" id="analyticsReport">
+                    <div class="title-editor">Video Analytics Report</div>
+                    <div class="report-body">
+                        <p class="placeholder-text">Paste a YouTube URL above and click "Analyze" to get:</p>
+                        <ul class="placeholder-text">
+                            <li>Views, likes, comments and subscribers</li>
+                            <li>Engagement rates compared with typical YouTube ranges</li>
+                            <li>Estimated reach beyond the subscriber base</li>
+                            <li>An SEO checklist with fixes for the title, description, tags and more</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- ===================== END VIDEO ANALYTICS ===================== -->
 
     <!-- Status Bar -->
     <div class="status-bar">
         <div class="status-section">
             <span id="statusText">Ready</span>
         </div>
-        <div class="status-section">
+        <div class="status-section transcriber-only">
             <span id="wordCount">Words: 0</span>
         </div>
-        <div class="status-section">
+        <div class="status-section transcriber-only">
             <span id="pageInfo">Page 1 of 1</span>
         </div>
         <div class="status-section progress-section" id="progressSection" style="display: none;">
@@ -305,5 +494,8 @@
     </div>
 
     <script src="/static/app.js"></script>
+    <script src="/static/workspace.js"></script>
+    <script src="/static/thumbnail_studio.js"></script>
+    <script src="/static/video_analytics.js"></script>
 </body>
 </html>

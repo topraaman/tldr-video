@@ -68,6 +68,31 @@ def download_thumbnail(thumbnail_url: str, video_id: str) -> str:
     return None
 
 
+def fetch_video_info(url: str) -> dict:
+    """Fetch full video metadata (views, likes, tags, thumbnails...) without downloading."""
+    info_cmd = [
+        YTDLP_PATH,
+        "--dump-json",
+        "--no-download",
+        "--no-playlist",
+        url
+    ]
+    result = subprocess.run(info_cmd, capture_output=True, text=True, timeout=60)
+    if result.returncode != 0:
+        raise Exception(f"yt-dlp info error: {result.stderr.strip()[-300:]}")
+    return json.loads(result.stdout)
+
+
+def best_thumbnail_url(info: dict) -> str:
+    """Pick the highest-resolution JPEG thumbnail, falling back to the default one."""
+    jpgs = [t for t in info.get("thumbnails") or []
+            if (t.get("url") or "").split("?")[0].endswith(".jpg")]
+    if jpgs:
+        best = max(jpgs, key=lambda t: (t.get("width") or 0, t.get("preference") or -1000))
+        return best["url"]
+    return info.get("thumbnail", "")
+
+
 def extract_audio(url: str) -> dict:
     """
     Extract audio from YouTube video or podcast URL.

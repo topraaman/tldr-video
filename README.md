@@ -2,7 +2,7 @@
 
 > **For people who hate videos that should've been text posts.**
 
-Convert YouTube videos and podcasts into clean, formatted transcripts with auto-generated chapters and key takeaways. Features a nostalgic Microsoft Word 2003-inspired interface.
+Convert YouTube videos and podcasts into clean, formatted transcripts, design custom thumbnails, and analyze video performance and SEO. Features a nostalgic Microsoft Word 2003-inspired interface.
 
 ![Word 2003 Style UI](https://img.shields.io/badge/UI-Word%202003%20Style-blue)
 ![100% Local](https://img.shields.io/badge/Privacy-100%25%20Local-green)
@@ -17,7 +17,8 @@ Convert YouTube videos and podcasts into clean, formatted transcripts with auto-
 - **Word 2003 UI** - Classic toolbar, formatting options, ruler, and status bar
 - **Rich Editing** - Bold, italic, underline, highlight colors, font controls
 - **Export Options** - Save as PDF or DOCX with thumbnail and formatting
-- **Thumbnail Extraction** - Download video thumbnails for reference
+- **Thumbnail Studio** - Extract a video's HD thumbnail, add your own photo and headline text, and save a 1280×720 custom thumbnail (PNG/JPG)
+- **Video Analytics** - Views, likes, comments, engagement rates vs typical ranges, estimated reach, and an SEO checklist with fixes
 - **100% Local** - Runs entirely on your machine, no API costs
 
 ## How It Works
@@ -127,6 +128,18 @@ python main.py
 
 ### Using the App
 
+The app has three tabs (the URL you paste is shared between them):
+
+| Tab | What it does |
+|-----|--------------|
+| 📝 **Transcriber** | Transcript, chapters, takeaways, Reels, PDF/DOCX export |
+| 🖼️ **Thumbnail Studio** | Extract the thumbnail, upload your own image and background, add headline text, drag to position, save PNG/JPG |
+| 📊 **Video Analytics** | Performance, engagement, reach and SEO report from public video data (printable) |
+
+> Analytics uses public data only. Impressions, click-through rate and watch time are private to the channel owner and live in YouTube Studio.
+
+**Transcriber:**
+
 1. **Paste URL** - Enter a YouTube or podcast URL in the toolbar
 2. **Click Transcribe** - Wait for processing (progress shown)
 3. **Edit** - Use the Word-style editor to refine the transcript
@@ -143,11 +156,15 @@ tldr-video/
 │   ├── youtube_handler.py   # yt-dlp audio/thumbnail extraction
 │   ├── llm_processor.py     # Ollama/Llama chapter generation
 │   ├── exporters.py         # PDF & DOCX export
+│   ├── analytics.py         # Video metrics, reach & SEO scoring
 │   └── requirements.txt     # Python dependencies
 ├── frontend/
 │   ├── index.html           # Word 2003-style UI
 │   ├── styles.css           # Classic silver/blue theme
-│   └── app.js               # Editor & API interactions
+│   ├── app.js               # Transcriber editor & API interactions
+│   ├── workspace.js         # Tabs, shared URL box, video-info fetch
+│   ├── thumbnail_studio.js  # Canvas thumbnail editor
+│   └── video_analytics.js   # Analytics report rendering
 ├── downloads/               # Temporary audio/thumbnail files
 ├── start.sh                 # Startup script
 └── README.md
