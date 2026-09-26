@@ -9,6 +9,12 @@ if ! command -v ollama >/dev/null 2>&1; then
     exit 1
 fi
 
+# A virtual environment breaks if the project folder is moved; rebuild it then
+if [ -d venv ] && ! grep -qF "$(pwd)/venv" venv/bin/activate 2>/dev/null; then
+    echo "📦 Project folder was moved - rebuilding the Python environment..."
+    rm -rf venv
+fi
+
 if [ ! -d venv ]; then
     echo "📦 First run: creating virtual environment and installing dependencies..."
     python3 -m venv venv && ./venv/bin/pip install -r backend/requirements.txt || {

@@ -134,6 +134,14 @@ Re-run the installer if you move the repo folder.
 
 It finds your original launcher (or pass its path), backs it up to `~/.tldr-video/`, updates it to use the latest launcher behavior while keeping its name and icon, deletes `TLDR.video.app`, and moves open-at-login to it. After that, `install_desktop_icon.sh` reuses your launcher instead of creating a second one.
 
+### Keep Everything in One Folder
+
+```bash
+bash launcher/move_to_tldr_folder.sh
+```
+
+Moves the project into a `TLDR` folder inside your "Ramprasad Devaraj" folder (found automatically, or pass a path), and moves thumbnails and reels the app saved in Downloads into `TLDR/Exports`. Your desktop launcher stays where it is and is updated to the new location; the Python environment is rebuilt on the next launch.
+
 ### Manual Start
 
 ```bash
