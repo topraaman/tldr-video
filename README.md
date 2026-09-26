@@ -105,6 +105,14 @@ The first transcription will download the Whisper model (~1.5GB). Subsequent run
 # Open http://localhost:8000 in your browser
 ```
 
+### Desktop Icon (macOS)
+
+```bash
+./launcher/install_desktop_icon.sh
+```
+
+This creates **TLDR.video.app** on your Desktop. Double-click it to start the server in a Terminal window (setting up `venv` on first run) and open the page in your browser. If the server is already running, it just opens the page. Re-run the installer if you move the repo folder.
+
 ### Manual Start
 
 ```bash
