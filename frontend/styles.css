@@ -1384,3 +1384,13 @@ body {
     padding: 0 8px 8px;
     line-height: 1.35;
 }
+
+.ai-btn {
+    background: linear-gradient(180deg, #e1bee7 0%, #ce93d8 100%);
+    border-color: #ab47bc;
+    font-weight: bold;
+}
+
+.ai-btn:hover:not(:disabled) {
+    background: linear-gradient(180deg, #ce93d8 0%, #ba68c8 100%);
+}

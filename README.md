@@ -145,8 +145,10 @@ The app has three tabs (the URL you paste is shared between them):
 | Tab | What it does |
 |-----|--------------|
 | 📝 **Transcriber** | Transcript, chapters, takeaways, Reels, PDF/DOCX export |
-| 🖼️ **Thumbnail Studio** | Extract the thumbnail, then **Use My Photo** to recreate it with your own picture: cropped to the same 1280×720 format, color-graded to match the original, headline in the original's palette. Add an overlay image and text, drag to position, save PNG/JPG |
+| 🖼️ **Thumbnail Studio** | Extract the thumbnail, then **Use My Photo** to recreate it with your own picture: cropped to the same 1280×720 format, color-graded to match the original, headline in the original's palette. **AI: Swap person** removes the person from the original and puts the person from your photo in their place (local AI, no API costs). Add an overlay image and text, drag to position, save PNG/JPG |
 | 📊 **Video Analytics** | Performance, engagement, reach and SEO report from public video data (printable) |
+
+> **AI person swap** runs on your Mac using [rembg](https://github.com/danielgatis/rembg) (person segmentation) and [LaMa](https://github.com/advimman/lama) (background fill). The first swap downloads the models (~370 MB) and takes longer; after that it takes a few seconds. Very busy backgrounds behind a large person can leave a soft or grainy patch; drag or resize your cut-out to cover it.
 
 > Analytics uses public data only. Impressions, click-through rate and watch time are private to the channel owner and live in YouTube Studio.
 
@@ -169,6 +171,7 @@ tldr-video/
 │   ├── llm_processor.py     # Ollama/Llama chapter generation
 │   ├── exporters.py         # PDF & DOCX export
 │   ├── analytics.py         # Video metrics, reach & SEO scoring
+│   ├── person_swap.py       # AI person swap (rembg segmentation + LaMa inpainting)
 │   └── requirements.txt     # Python dependencies
 ├── frontend/
 │   ├── index.html           # Word 2003-style UI

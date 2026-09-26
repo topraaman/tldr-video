@@ -18,4 +18,15 @@ if [ ! -d venv ]; then
     }
 fi
 
+# Install new dependencies whenever requirements.txt changes (e.g. after git pull)
+STAMP=venv/.requirements-installed
+if [ ! -f "$STAMP" ] || [ backend/requirements.txt -nt "$STAMP" ]; then
+    echo "📦 Installing updated dependencies..."
+    if ./venv/bin/pip install -r backend/requirements.txt; then
+        touch "$STAMP"
+    else
+        echo "⚠️  Some dependencies failed to install; starting anyway (AI features may be unavailable)."
+    fi
+fi
+
 exec ./start.sh

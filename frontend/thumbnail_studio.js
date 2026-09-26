@@ -10,7 +10,10 @@ const studio = {
     videoTitle: '',
     bgThumbImg: null,
     bgUploadImg: null,
+    bgUploadFile: null,     // original photo file, sent to the AI person swap
+    swapBgImg: null,        // original thumbnail with its person removed (AI)
     userImg: null,
+    userImgPreGraded: false, // AI cut-out is already color matched on the server
     user: { x: 960, y: 380 },
     text: { x: 640, y: 590 },
     bg: { x: 0, y: 0 },  // pan offset for "My photo" background
@@ -57,7 +60,8 @@ const studioEls = {
     matchColors: document.getElementById('matchColors'),
     matchStrength: document.getElementById('matchStrength'),
     paletteSwatches: document.getElementById('paletteSwatches'),
-    applyPaletteBtn: document.getElementById('applyPaletteBtn')
+    applyPaletteBtn: document.getElementById('applyPaletteBtn'),
+    swapPersonBtn: document.getElementById('swapPersonBtn')
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -74,6 +78,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const img = await loadImageFile(studioEls.bgUpload.files[0]);
         if (!img) return;
         studio.bgUploadImg = img;
+        studio.bgUploadFile = studioEls.bgUpload.files[0];
+        updateSwapButton();
         studio.bg = { x: 0, y: 0 };
         studioEls.bgSource.value = 'upload';
         // Recreate the original's look: its palette for the text, its title as headline
@@ -90,15 +96,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const img = await loadImageFile(studioEls.userUpload.files[0]);
         if (!img) return;
         studio.userImg = img;
+        studio.userImgPreGraded = false;
         studioEls.removeUserBtn.disabled = false;
         drawThumbnail();
     });
     studioEls.removeUserBtn.addEventListener('click', () => {
         studio.userImg = null;
+        studio.userImgPreGraded = false;
         studioEls.userUpload.value = '';
         studioEls.removeUserBtn.disabled = true;
         drawThumbnail();
     });
+
+    studioEls.swapPersonBtn.addEventListener('click', swapPersonWithAI);
 
     studioEls.applyPaletteBtn.addEventListener('click', () => {
         applyPaletteToText();
@@ -128,10 +138,12 @@ function loadStudioThumbnail(filename, { title = '', channel = '' } = {}) {
         studio.thumbnailFilename = filename;
         studio.videoTitle = title;
         studio.bgThumbImg = img;
+        studio.swapBgImg = null;
         studio.targetStats = colorStats(img);
         studio.palette = extractPalette(img);
         studio.gradedCache.clear();
         renderPalette();
+        updateSwapButton();
         // Keep the user's photo as the background if they already added one
         studioEls.bgSource.value = studio.bgUploadImg ? 'upload' : 'thumbnail';
         studioEls.original.src = src;
@@ -216,7 +228,8 @@ function imageSize(img) {
 function drawBackground(ctx) {
     const source = studioEls.bgSource.value;
     const img = source === 'thumbnail' ? studio.bgThumbImg
-        : source === 'upload' ? styledImage(studio.bgUploadImg) : null;
+        : source === 'upload' ? styledImage(studio.bgUploadImg)
+        : source === 'swap' ? studio.swapBgImg : null;
     studio.bounds.bg = null;
 
     if (!img) {
@@ -226,9 +239,11 @@ function drawBackground(ctx) {
             ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
             ctx.font = '28px Tahoma, sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText(source === 'thumbnail'
-                ? 'Extract a thumbnail from a video URL to use it here'
-                : 'Upload a background image in the sidebar', THUMB_W / 2, 60);
+            ctx.fillText({
+                thumbnail: 'Extract a thumbnail from a video URL to use it here',
+                upload: 'Choose your photo in the "Use My Photo" panel',
+                swap: 'Click "AI: Swap person into original" to create this background'
+            }[source], THUMB_W / 2, 60);
         }
         return;
     }
@@ -259,7 +274,7 @@ function drawBackground(ctx) {
 }
 
 function drawUserImage(ctx) {
-    const img = styledImage(studio.userImg);
+    const img = studio.userImgPreGraded ? studio.userImg : styledImage(studio.userImg);
     const size = imageSize(img);
     const shape = studioEls.userShape.value;
     const h = THUMB_H * Number(studioEls.userSize.value) / 100;
@@ -448,7 +463,10 @@ async function downloadOriginalThumbnail() {
 
 function resetStudio() {
     studio.bgUploadImg = null;
+    studio.bgUploadFile = null;
+    studio.swapBgImg = null;
     studio.userImg = null;
+    studio.userImgPreGraded = false;
     studio.user = { x: 960, y: 380 };
     studio.text = { x: 640, y: 590 };
     studio.bg = { x: 0, y: 0 };
@@ -457,6 +475,7 @@ function resetStudio() {
     studioEls.userUpload.value = '';
     studioEls.removeUserBtn.disabled = true;
     studioEls.bgSource.value = studio.bgThumbImg ? 'thumbnail' : 'color';
+    updateSwapButton();
     studioEls.bgDarken.value = 0;
     studioEls.bgBlur.value = 0;
     studioEls.userSize.value = 80;
@@ -491,4 +510,77 @@ function applyPaletteToText() {
     if (!colors) return;
     studioEls.textColor.value = colors.fill;
     studioEls.textStroke.value = colors.outline;
+}
+
+// ---------- AI person swap ----------
+
+function updateSwapButton() {
+    const ready = Boolean(studio.thumbnailFilename && studio.bgUploadFile);
+    studioEls.swapPersonBtn.disabled = !ready;
+    studioEls.swapPersonBtn.title = ready
+        ? 'Replace the person in the original thumbnail with the person in your photo'
+        : 'Extract a thumbnail and choose a photo first';
+}
+
+function loadImageUrl(src) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error('Could not load the AI result'));
+        img.src = src;
+    });
+}
+
+async function swapPersonWithAI() {
+    if (!studio.thumbnailFilename || !studio.bgUploadFile) return;
+
+    const form = new FormData();
+    form.append('thumbnail_filename', studio.thumbnailFilename);
+    form.append('photo', studio.bgUploadFile);
+
+    const header = document.querySelector('.loading-header');
+    const previousHeader = header.textContent;
+    header.textContent = 'AI Person Swap...';
+    showLoading('Finding people and rebuilding the background...');
+    updateProgress(30, 'AI is swapping the person (first run downloads the models)');
+    studioEls.swapPersonBtn.disabled = true;
+
+    try {
+        const response = await fetch(`${API_BASE}/api/thumbnail/swap-person`, { method: 'POST', body: form });
+        if (!response.ok) {
+            let detail = 'Person swap failed';
+            try { detail = (await response.json()).detail || detail; } catch (e) { /* not JSON */ }
+            throw new Error(detail);
+        }
+        const result = await response.json();
+        const [background, person] = await Promise.all([
+            loadImageUrl(result.background), loadImageUrl(result.person)
+        ]);
+
+        studio.swapBgImg = background;
+        studioEls.bgSource.value = 'swap';
+
+        // The cut-out becomes the editable "Your Image" layer, placed where the original person was
+        studio.userImg = person;
+        studio.userImgPreGraded = true;
+        const box = result.box;
+        studio.user = { x: box.x + box.w / 2, y: box.y + box.h / 2 };
+        studioEls.userSize.value = Math.round(Math.min(200, Math.max(10, box.h / THUMB_H * 100)));
+        studioEls.userShape.value = 'original';
+        studioEls.userOutline.checked = false;
+        studioEls.removeUserBtn.disabled = false;
+        if (studio.palette.length) applyPaletteToText();
+
+        drawThumbnail();
+        statusText.textContent = result.inpaint_method === 'lama'
+            ? 'Person swapped - drag or resize your cut-out to fine-tune'
+            : 'Person swapped with basic background fill (LaMa model unavailable) - drag or resize to fine-tune';
+    } catch (error) {
+        statusText.textContent = 'AI swap failed: ' + error.message;
+        alert('AI swap: ' + error.message);
+    } finally {
+        hideLoading();
+        header.textContent = previousHeader;
+        updateSwapButton();
+    }
 }

@@ -26,7 +26,7 @@ def _check_rate_limit(ip: str) -> bool:
         return False
     _rate_limit_store[ip].append(now)
     return True
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, Response
@@ -38,6 +38,7 @@ from youtube_handler import (
     fetch_video_info, best_thumbnail_url, download_thumbnail
 )
 from analytics import build_analytics
+from person_swap import swap_person, PersonSwapUnavailable, NoPersonFound
 from transcriber import transcribe_audio, segments_to_text_with_timestamps
 from llm_processor import (
     generate_chapters_and_takeaways,
@@ -145,9 +146,8 @@ async def health_check():
 DOWNLOADS_DIR = Path(__file__).parent.parent / "downloads"
 
 
-@app.get("/api/thumbnail/{filename}")
-async def get_thumbnail(filename: str):
-    """Serve thumbnail image for download"""
+def _resolve_thumbnail(filename: str) -> Path:
+    """Validate a thumbnail filename and return its path inside DOWNLOADS_DIR."""
     # Reject any path separators before resolving
     if "/" in filename or "\\" in filename or ".." in filename:
         raise HTTPException(status_code=400, detail="Invalid filename")
@@ -162,13 +162,53 @@ async def get_thumbnail(filename: str):
 
     if not thumbnail_path.exists():
         raise HTTPException(status_code=404, detail="Thumbnail not found")
+    return thumbnail_path
 
+
+@app.get("/api/thumbnail/{filename}")
+async def get_thumbnail(filename: str):
+    """Serve thumbnail image for download"""
+    thumbnail_path = _resolve_thumbnail(filename)
     return FileResponse(
         thumbnail_path,
         media_type="image/jpeg",
         filename=filename,
         headers={"Content-Disposition": f'attachment; filename="{filename}"'}
     )
+
+
+MAX_PHOTO_BYTES = 20 * 1024 * 1024
+
+
+@app.post("/api/thumbnail/swap-person")
+async def swap_person_endpoint(
+    req: Request,
+    thumbnail_filename: str = Form(...),
+    photo: UploadFile = File(...),
+):
+    """
+    AI person swap: remove the person from the extracted thumbnail and put the
+    person from the uploaded photo in their place. Runs locally (rembg + LaMa).
+    """
+    client_ip = req.client.host if req.client else "unknown"
+    if not _check_rate_limit(client_ip):
+        raise HTTPException(status_code=429, detail="Too many requests. Please wait before submitting again.")
+
+    thumbnail_path = _resolve_thumbnail(thumbnail_filename)
+    photo_bytes = await photo.read(MAX_PHOTO_BYTES + 1)
+    if len(photo_bytes) > MAX_PHOTO_BYTES:
+        raise HTTPException(status_code=413, detail="Photo is too large (max 20 MB).")
+
+    loop = asyncio.get_event_loop()
+    try:
+        return await loop.run_in_executor(None, swap_person, str(thumbnail_path), photo_bytes)
+    except NoPersonFound as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except PersonSwapUnavailable as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        logger.error("Person swap failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Person swap failed. Check server logs for details.")
 
 
 class VideoInfoRequest(BaseModel):

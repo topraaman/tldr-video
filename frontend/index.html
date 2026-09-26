@@ -329,8 +329,11 @@
                         </div>
                         <span></span>
                         <button id="applyPaletteBtn" class="toolbar-btn small-btn" disabled>🎨 Use palette for text</button>
+                        <span></span>
+                        <button id="swapPersonBtn" class="toolbar-btn small-btn ai-btn" disabled title="Extract a thumbnail and choose a photo first">🤖 AI: Swap person into original</button>
                     </div>
                     <p class="studio-note">Your photo is cropped to 1280 × 720 like the original, and its colors are graded to match. Drag the photo on the canvas to reframe it. Click a palette color to use it for the text (Shift+click for the outline).</p>
+                    <p class="studio-note"><strong>AI swap:</strong> removes the person from the original thumbnail and puts the person from your photo in their place. Runs on your Mac; the first use downloads the AI models (about 370 MB).</p>
                 </div>
 
                 <div class="sidebar-section fixed-section">
@@ -340,6 +343,7 @@
                         <select id="bgSource" class="toolbar-select">
                             <option value="thumbnail">Extracted thumbnail</option>
                             <option value="upload">My photo</option>
+                            <option value="swap">AI swap background</option>
                             <option value="color">Solid color</option>
                         </select>
                         <label for="bgColor">Color</label>
@@ -357,7 +361,7 @@
                         <label for="userImageUpload">Image</label>
                         <input type="file" id="userImageUpload" accept="image/*" class="file-input">
                         <label for="userImageSize">Size</label>
-                        <input type="range" id="userImageSize" min="10" max="150" value="80">
+                        <input type="range" id="userImageSize" min="10" max="200" value="80">
                         <label for="userImageShape">Shape</label>
                         <select id="userImageShape" class="toolbar-select">
                             <option value="original">Original</option>
